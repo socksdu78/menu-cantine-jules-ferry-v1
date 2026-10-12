@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" id="theme-color-meta" content="#C5000B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cantine">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Cantine — Jules Ferry</title>
+<style>
+
+/* ─── TOKENS ─────────────────────────────────────────────── */
+:root {
+  --bg:        #F5F1F0;
+  --surface:   #FFFFFF;
+  --surface-2: #FAF7F6;
+  --border:    #EDE7E6;
+  --border-2:  #E0D8D7;
+  --text:      #1A1212;
+  --text-2:    #6B5555;
+  --text-3:    #A89090;
+  --green:     #1A6B3A;
+  --green-dim: rgba(26,107,58,.10);
+
+  /* Accent — updated dynamically by JS */
+  --accent:     #C5000B;
+  --accent-dim: rgba(197,0,11,.10);
+  --accent-txt: #fff;
+
+  --r-sm:4px; --r-md:14px; --r-lg:20px; --r-xl:26px; --r-full:999px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.04);
+  --ease-out: cubic-bezier(.2,.8,.4,1);
+  --ease-spring: cubic-bezier(.34,1.56,.64,1);
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+html{height:100%}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100dvh;height:100vh;overflow:hidden}
+button,input,select{font-family:inherit}
+button{cursor:pointer;border:none;background:none}
+
+/* ─── APP BAR ─────────────────────────────────────────────── */
+.appbar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:env(safe-area-inset-top) 16px 0;height:calc(60px + env(safe-area-inset-top));background:var(--surface);border-bottom:1px solid var(--border);z-index:20;transition:box-shadow .2s}
+.appbar.raised{box-shadow:var(--shadow-sm)}
+.appbar-logo{width:34px;height:34px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0}
+.appbar-info{flex:1;overflow:hidden}
+.appbar-title{font-size:17px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appbar-sub{font-size:12px;font-weight:500;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appbar-action{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-full);background:var(--bg);color:var(--text-2);font-size:18px;transition:background .15s,transform .15s;flex-shrink:0}
+.appbar-action:active{background:var(--border);transform:scale(.92)}
+.appbar-action.spinning{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── SCROLL / PAGE ───────────────────────────────────────── */
+.main{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--bg);-webkit-overflow-scrolling:touch}
+.page{display:none;padding:16px 16px 32px;animation:fadeUp .25s var(--ease-out)}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── BOTTOM NAV ──────────────────────────────────────────── */
+.bottom-nav{flex-shrink:0;display:flex;border-top:1px solid var(--border);background:var(--surface);padding-bottom:env(safe-area-inset-bottom)}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 12px;position:relative;transition:opacity .15s}
+.nav-item:active{opacity:.6}
+.nav-pill{width:56px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-full);transition:background .2s}
+.nav-item.active .nav-pill{background:var(--accent-dim)}
+.nav-icon{font-size:19px;line-height:1}
+.nav-label{font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.2px}
+.nav-item.active .nav-label{color:var(--accent)}
+
+/* ─── WEEK HEADER BADGE ───────────────────────────────────── */
+.week-badge{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 14px;background:var(--surface);border-radius:var(--r-md);border:1px solid var(--border)}
+.week-badge-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.week-badge-text{font-size:13px;font-weight:600;color:var(--text);flex:1}
+.week-badge-pill{font-size:11px;font-weight:700;color:var(--text-2);background:var(--bg);padding:3px 10px;border-radius:var(--r-full);border:1px solid var(--border);white-space:nowrap}
+
+/* ─── DAY CARDS ───────────────────────────────────────────── */
+.day-card{background:var(--surface);border-radius:var(--r-xl);margin-bottom:10px;overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow-sm);transition:transform .15s var(--ease-out),box-shadow .15s}
+.day-card:not(.no-click):active{transform:scale(.988);box-shadow:none}
+.day-card.ferie{opacity:.5}
+.day-card.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--shadow-md)}
+
+.day-header{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer}
+.day-header.today-hd{background:var(--accent)}
+.day-header:not(.today-hd){background:var(--surface-2)}
+.day-name{font-size:15px;font-weight:700;flex:1}
+.day-header.today-hd .day-name{color:#fff}
+.day-header:not(.today-hd) .day-name{color:var(--text)}
+.day-date{font-size:12px;font-weight:500}
+.day-header.today-hd .day-date{color:rgba(255,255,255,.75)}
+.day-header:not(.today-hd) .day-date{color:var(--text-2)}
+.day-chip{font-size:10px;font-weight:700;padding:2px 9px;border-radius:var(--r-full);letter-spacing:.3px}
+.today-chip{background:rgba(255,255,255,.22);color:#fff}
+.ferie-chip{background:var(--border);color:var(--text-2)}
+.day-chevron{font-size:18px;font-weight:500}
+.day-header.today-hd .day-chevron{color:rgba(255,255,255,.7)}
+.day-header:not(.today-hd) .day-chevron{color:var(--text-3)}
+
+/* Day preview */
+.day-preview{padding:2px 0 0;border-top:1px solid var(--border)}
+.preview-row{display:flex;align-items:baseline;gap:6px;padding:9px 16px;transition:background .15s}
+.preview-row:last-child{border-radius:0 0 var(--r-xl) var(--r-xl)}
+.preview-row.highlight{background:var(--accent-dim)}
+.preview-meal-label{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--text-3);min-width:26px;line-height:18px;flex-shrink:0;text-transform:uppercase}
+.preview-meal-label.dej{color:var(--accent)}
+.preview-value{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;line-height:18px}
+.preview-value.empty{color:var(--text-3);font-style:italic}
+
+/* ─── NEXT WEEK BUTTON ────────────────────────────────────── */
+.next-week-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px 0;margin-top:8px;margin-bottom:4px;border:1.5px solid var(--border-2);border-radius:var(--r-full);background:var(--surface);color:var(--text);font-size:14px;font-weight:600;transition:background .15s,border-color .2s}
+.next-week-btn:active{background:var(--border);border-color:var(--border)}
+.next-week-btn span{font-size:17px;line-height:1}
+.prev-week-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 0;margin-bottom:12px;border:none;border-radius:var(--r-full);background:transparent;color:var(--text-2);font-size:13px;font-weight:600}
+.prev-week-btn:active{color:var(--text)}
+
+/* ─── EMPTY ───────────────────────────────────────────────── */
+.empty{text-align:center;padding:64px 24px}
+.empty-icon{font-size:56px;margin-bottom:16px}
+.empty-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px}
+.empty-sub{font-size:14px;color:var(--text-2);line-height:1.6;margin-bottom:24px}
+
+/* ─── BUTTONS ─────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:var(--r-full);padding:0 22px;height:44px;font-size:15px;font-weight:600;width:100%;transition:opacity .15s,transform .1s;position:relative;overflow:hidden}
+.btn:active{opacity:.85;transform:scale(.98)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-secondary{background:var(--surface);color:var(--text);border:1.5px solid var(--border-2)}
+.btn-outline{background:transparent;color:var(--accent);border:1.5px solid var(--accent);margin-top:8px}
+
+/* ─── IMPORT ──────────────────────────────────────────────── */
+.import-hero{background:var(--surface);border-radius:var(--r-xl);border:1px solid var(--border);padding:28px 20px;text-align:center;margin-bottom:14px;box-shadow:var(--shadow-sm)}
+.import-hero-icon{font-size:48px;margin-bottom:12px}
+.import-hero-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px}
+.import-hero-sub{font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:20px}
+.import-url{font-size:11px;color:var(--text-3);font-family:'Courier New',monospace;background:var(--bg);padding:8px 12px;border-radius:var(--r-sm);margin-bottom:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status-banner{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--r-md);margin-bottom:12px;font-size:13px;line-height:1.5}
+.status-banner.info{background:#EAF2FF;color:#0A3E7C}
+.status-banner.success{background:#E8F5E9;color:#1A5928}
+.status-banner.error{background:#FFEBEE;color:#7A1010}
+.status-banner .s-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.divider-or{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--text-3);font-size:12px;font-weight:600}
+.divider-or::before,.divider-or::after{content:'';flex:1;height:1px;background:var(--border)}
+.upload-zone{background:var(--surface);border:2px dashed var(--border-2);border-radius:var(--r-xl);padding:28px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;margin-bottom:12px}
+.upload-zone:hover{border-color:var(--accent)}
+.upload-zone.drag-over{border-color:var(--accent);background:var(--accent-dim)}
+.upload-zone p{font-size:13px;color:var(--text-2);margin-top:8px}
+.loader{display:flex;flex-direction:column;align-items:center;gap:14px;padding:28px 0}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+.last-updated{text-align:center;font-size:12px;color:var(--text-3);margin-top:16px}
+
+/* ─── SETTINGS ────────────────────────────────────────────── */
+.settings-group{margin-bottom:24px}
+.settings-group-label{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;padding:0 2px}
+.settings-card{background:var(--surface);border-radius:var(--r-xl);overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow-sm)}
+.settings-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-row-icon{font-size:18px;flex-shrink:0}
+.settings-row-info{flex:1}
+.settings-row-title{font-size:14px;font-weight:600;color:var(--text)}
+.settings-row-sub{font-size:12px;color:var(--text-2);margin-top:1px}
+
+/* Toggle */
+.toggle{position:relative;display:inline-block;width:46px;height:26px}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--border-2);border-radius:13px;cursor:pointer;transition:background .25s}
+.toggle-slider::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);top:3px;left:3px;transition:transform .25s var(--ease-spring)}
+.toggle input:checked+.toggle-slider{background:var(--accent)}
+.toggle input:checked+.toggle-slider::after{transform:translateX(20px)}
+
+/* Time & URL inputs */
+.time-input{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:6px 10px;font-size:14px;font-weight:600;color:var(--text);background:var(--bg);width:84px;text-align:center;transition:opacity .2s}
+.time-input:focus{outline:none;border-color:var(--accent)}
+.time-input:disabled{opacity:.35;pointer-events:none}
+.url-input{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--text);background:var(--bg);width:100%;font-family:'Courier New',monospace}
+.url-input:focus{outline:none;border-color:var(--accent)}
+
+/* Color picker */
+.color-picker-row{display:flex;align-items:center;gap:12px}
+.color-swatch{width:34px;height:34px;border-radius:var(--r-full);border:2px solid var(--border-2);overflow:hidden;flex-shrink:0;cursor:pointer}
+.color-swatch input[type=color]{width:200%;height:200%;margin:-50%;border:none;padding:0;cursor:pointer}
+.color-presets{display:flex;gap:7px;flex-wrap:wrap}
+.color-preset{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s}
+.color-preset.active{border-color:var(--text);transform:scale(1.15)}
+
+/* Schedule grid - new layout with per-day times */
+.sg-day-block{border-top:1px solid var(--border);padding:12px 16px}
+.sg-day-block:first-child{border-top:none}
+.sg-day-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px}
+.sg-meal-row{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.sg-meal-row:last-child{margin-bottom:0}
+.sg-meal-label{font-size:13px;font-weight:500;color:var(--text-2);min-width:70px}
+.sg-meal-label.active{color:var(--text)}
+
+/* Styled select */
+.styled-select{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:6px 10px;font-size:14px;font-weight:500;color:var(--text);background:var(--bg);cursor:pointer}
+.styled-select:focus{outline:none;border-color:var(--accent)}
+
+/* Info card */
+.info-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:16px;font-size:13px;color:var(--text-2);line-height:1.8;margin-bottom:12px}
+.info-card strong{color:var(--text)}
+
+/* ─── MODAL ───────────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:flex-end;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal-sheet{background:var(--surface);border-radius:26px 26px 0 0;width:100%;max-height:92vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom);animation:slideUp .35s var(--ease-out)}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--border-2);border-radius:2px;margin:12px auto 4px}
+.modal-hero{margin:4px 16px 0;padding:18px 20px 20px;border-radius:var(--r-lg);background:var(--accent);color:#fff}
+.modal-hero.ferie-hero{background:var(--surface-2)}
+.modal-day-name{font-size:28px;font-weight:700;line-height:1.1;color:#fff}
+.modal-hero.ferie-hero .modal-day-name{color:var(--text)}
+.modal-day-date{font-size:13px;color:rgba(255,255,255,.75);margin-top:3px}
+.modal-hero.ferie-hero .modal-day-date{color:var(--text-2)}
+.modal-body{padding:12px 16px 8px}
+.meal-section{margin-bottom:12px}
+.meal-section-title{font-size:13px;font-weight:700;color:var(--text-2);padding:4px 0 8px;display:flex;align-items:center;gap:6px;letter-spacing:.2px}
+.meal-section-title.dej{color:var(--accent)}
+.cat-card{background:var(--surface-2);border-radius:var(--r-md);margin-bottom:8px;overflow:hidden;border:1px solid var(--border)}
+.cat-header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)}
+.cat-emoji{font-size:15px}
+.cat-name{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.cat-body{padding:8px 12px 10px}
+.cat-item{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px}
+.cat-item:last-child{margin-bottom:0}
+.cat-bullet{width:5px;height:5px;border-radius:50%;margin-top:8px;flex-shrink:0}
+.cat-item-text{font-size:14px;line-height:1.55;color:var(--text)}
+.cat-item-text.veg{color:var(--green);font-weight:500}
+.modal-close{margin:4px 16px 16px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:var(--r-full);height:42px;width:calc(100% - 32px);font-size:14px;font-weight:600;transition:background .15s}
+.modal-close:active{background:var(--border)}
+
+/* ─── TOAST ───────────────────────────────────────────────── */
+.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:11px 20px;border-radius:var(--r-full);font-size:13px;font-weight:500;z-index:9999;white-space:nowrap;box-shadow:var(--shadow-md);animation:toastIn .3s var(--ease-spring)}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(12px) scale(.9)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+
+</style>
+</head>
+<body>
+
+<header class="appbar" id="appbar">
+  <img class="appbar-logo" src="icons/icon-192.png" alt="">
+  <div class="appbar-info">
+    <div class="appbar-title">Cantine</div>
+    <div class="appbar-sub" id="appbar-sub">Jules Ferry · Versailles</div>
+  </div>
+  <button class="appbar-action" id="btn-refresh" title="Actualiser" onclick="quickRefresh()">↻</button>
+</header>
+
+<main class="main" id="main">
+
+  <!-- PAGE MENU -->
+  <div class="page active" id="page-menu">
+    <div id="menu-content"></div>
+  </div>
+
+  <!-- PAGE IMPORT -->
+  <div class="page" id="page-import">
+    <div class="import-hero">
+      <div class="import-hero-icon">📡</div>
+      <div class="import-hero-title">Récupérer le menu</div>
+      <div class="import-hero-sub">Télécharge automatiquement le PDF depuis EasILYS.</div>
+      <div class="import-url" id="display-url">ile-de-france.easilys.net/…</div>
+      <button class="btn btn-primary" onclick="fetchMenuFromUrl()">Actualiser le menu</button>
+    </div>
+    <div id="import-status"></div>
+    <div class="divider-or">ou</div>
+    <div class="upload-zone" id="drop-zone"
+      onclick="document.getElementById('pdf-input').click()"
+      ondragover="event.preventDefault();this.classList.add('drag-over')"
+      ondragleave="this.classList.remove('drag-over')"
+      ondrop="handleDrop(event)">
+      <div style="font-size:32px">📄</div>
+      <p>Importer un PDF manuellement<br><small>Glisser-déposer ou toucher</small></p>
+    </div>
+    <input type="file" id="pdf-input" accept=".pdf,application/pdf" style="display:none" onchange="handlePdfUpload(this)">
+    <div class="last-updated" id="last-updated"></div>
+  </div>
+
+  <!-- PAGE SETTINGS -->
+  <div class="page" id="page-settings">
+
+    <!-- Apparence -->
+    <div class="settings-group">
+      <div class="settings-group-label">🎨 Apparence</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <span class="settings-row-icon">🎨</span>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Couleur</div>
+            <div class="settings-row-sub">Teinte de l'interface</div>
+          </div>
+          <div class="color-picker-row">
+            <div class="color-swatch" title="Choisir une couleur">
+              <input type="color" id="accent-color-input" value="#C5000B" oninput="applyAccent(this.value)" onchange="saveAccent(this.value)">
+            </div>
+          </div>
+        </div>
+        <div class="settings-row" style="flex-wrap:wrap;gap:10px">
+          <span class="settings-row-icon">⚡</span>
+          <div class="settings-row-info"><div class="settings-row-title">Couleurs rapides</div></div>
+          <div class="color-presets" id="color-presets">
+            <!-- filled by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notifications globales -->
+    <div class="settings-group">
+      <div class="settings-group-label">🔔 Notifications</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <span class="settings-row-icon">🔐</span>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Autorisation</div>
+            <div class="settings-row-sub" id="notif-status-text">—</div>
+          </div>
+          <button class="btn btn-secondary" style="width:auto;height:34px;font-size:13px;padding:0 14px" id="notif-perm-btn" onclick="requestNotifPermission()">Activer</button>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-icon">🍽️</span>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Déjeuner</div>
+            <div class="settings-row-sub">Activer les notifs déjeuner</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="notif-dej-master" onchange="saveSetting('notifDejEnabled',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-icon">🌙</span>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Dîner</div>
+            <div class="settings-row-sub">Activer les notifs dîner</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="notif-din-master" onchange="saveSetting('notifDinEnabled',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Emploi du temps A -->
+    <div class="settings-group">
+      <div class="settings-group-label">📅 Emploi du temps — Semaine A</div>
+      <div class="settings-card"><div id="schedule-A"></div></div>
+    </div>
+
+    <!-- Emploi du temps B -->
+    <div class="settings-group">
+      <div class="settings-group-label">📅 Emploi du temps — Semaine B</div>
+      <div class="settings-card"><div id="schedule-B"></div></div>
+    </div>
+
+    <!-- Menu -->
+    <div class="settings-group">
+      <div class="settings-group-label">⚙️ Menu</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <span class="settings-row-icon">📌</span>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Semaine 1 du PDF = Semaine…</div>
+            <div class="settings-row-sub">Quelle semaine scolaire correspond à la 1ère semaine du PDF</div>
+          </div>
+          <select class="styled-select" id="week1-label" onchange="saveSetting('week1isA',this.value==='A')">
+            <option value="A">A</option>
+            <option value="B">B</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-icon">🔗</span>
+          <div class="settings-row-info"><div class="settings-row-title">URL du PDF</div></div>
+        </div>
+        <div style="padding:0 16px 14px">
+          <input type="url" class="url-input" id="pdf-url-input" placeholder="https://…" onchange="saveSetting('pdfUrl',this.value)">
+        </div>
+      </div>
+    </div>
+
+    <!-- Données -->
+    <div class="settings-group">
+      <div class="settings-group-label">🗑️ Données</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <span class="settings-row-icon">📋</span>
+          <div class="settings-row-info">
+            <div class="settings-row-title" id="menu-status-text">Aucun menu</div>
+            <div class="settings-row-sub" id="menu-status-sub">—</div>
+          </div>
+          <button onclick="clearMenu()" style="background:none;border:1.5px solid #FFBEBE;color:#C00;border-radius:var(--r-full);padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer">Vider</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <strong>Comment ça marche ?</strong><br>
+      1. L'app récupère le PDF depuis EasILYS (serveur de ta cantine).<br>
+      2. Le texte est extrait localement — <strong>aucune API, aucun compte</strong>.<br>
+      3. Configure ton emploi du temps pour recevoir une notification avant chaque repas, avec l'heure que tu veux par jour.
+    </div>
+
+  </div>
+
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="openTab('menu')" id="navbtn-menu">
+    <div class="nav-pill"><span class="nav-icon">🍽️</span></div>
+    <span class="nav-label">Menu</span>
+  </button>
+  <button class="nav-item" onclick="openTab('import')" id="navbtn-import">
+    <div class="nav-pill"><span class="nav-icon">📥</span></div>
+    <span class="nav-label">Actualiser</span>
+  </button>
+  <button class="nav-item" onclick="openTab('settings')" id="navbtn-settings">
+    <div class="nav-pill"><span class="nav-icon">⚙️</span></div>
+    <span class="nav-label">Réglages</span>
+  </button>
+</nav>
+
+<div class="modal-overlay" id="modal" onclick="handleModalOverlayClick(event)">
+  <div class="modal-sheet" id="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="modal-content"></div>
+    <button class="modal-close" onclick="closeModal()">Fermer</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+const DEFAULT_PDF_URL = 'https://ile-de-france.easilys.net/interface/menu-report/site/0782565P';
+const CORS_PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+];
+
+const MONTHS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const DAY_KEYS  = ['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI'];
+const DAY_NAMES = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi'];
+const DAY_KEY_LOWER = ['lundi','mardi','mercredi','jeudi','vendredi'];
+
+const ACCENT_PRESETS = [
+  { color: '#C5000B', name: 'Rouge' },
+  { color: '#1565C0', name: 'Bleu' },
+  { color: '#2E7D32', name: 'Vert' },
+  { color: '#6A1B9A', name: 'Violet' },
+  { color: '#E65100', name: 'Orange' },
+  { color: '#00695C', name: 'Teal' },
+];
+
+const CAT_DEFS = [
+  { key:'entrees',      emoji:'🥗', label:'Entrées',           color:'#4CAF50' },
+  { key:'plats',        emoji:'🍽️', label:'Plats',             color:'#C5000B' },
+  { key:'prodLaitiers', emoji:'🧀', label:'Produits laitiers', color:'#FF9800' },
+  { key:'desserts',     emoji:'🍮', label:'Desserts',           color:'#9C27B0' },
+];
+
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let menuData = null;
+
+// Default meal schedule entry
+const defaultMealEntry = (time) => ({ on: false, time });
+
+let settings = {
+  pdfUrl: DEFAULT_PDF_URL,
+  week1isA: true,
+  accentColor: '#C5000B',
+  notifDejEnabled: true,
+  notifDinEnabled: true,
+  schedule: {
+    A: {
+      lundi:    { dej: { on: true,  time: '11:30' }, din: { on: false, time: '18:00' } },
+      mardi:    { dej: { on: true,  time: '11:30' }, din: { on: true,  time: '18:00' } },
+      mercredi: { dej: { on: false, time: '11:30' }, din: { on: false, time: '18:00' } },
+      jeudi:    { dej: { on: true,  time: '11:30' }, din: { on: true,  time: '18:00' } },
+      vendredi: { dej: { on: true,  time: '11:30' }, din: { on: false, time: '18:00' } },
+    },
+    B: {
+      lundi:    { dej: { on: true,  time: '11:30' }, din: { on: false, time: '18:00' } },
+      mardi:    { dej: { on: true,  time: '11:30' }, din: { on: true,  time: '18:00' } },
+      mercredi: { dej: { on: false, time: '11:30' }, din: { on: false, time: '18:00' } },
+      jeudi:    { dej: { on: true,  time: '11:30' }, din: { on: true,  time: '18:00' } },
+      vendredi: { dej: { on: true,  time: '11:30' }, din: { on: false, time: '18:00' } },
+    },
+  },
+};
+
+let currentDisplayWeekIdx = 0; // which week is shown on menu page
+
+/* ════════════════════════════════════════
+   STORAGE & MIGRATION
+════════════════════════════════════════ */
+function loadState() {
+  try {
+    const m = localStorage.getItem('cantine_menu_v2');
+    if (m) menuData = JSON.parse(m);
+    const s = localStorage.getItem('cantine_settings_v3');
+    if (s) {
+      const saved = JSON.parse(s);
+      settings = deepMerge(settings, saved);
+    }
+    // Migrate old boolean schedule format → new object format
+    for (const week of ['A','B']) {
+      for (const dk of DAY_KEY_LOWER) {
+        for (const meal of ['dej','din']) {
+          const v = settings.schedule?.[week]?.[dk]?.[meal];
+          if (typeof v === 'boolean') {
+            settings.schedule[week][dk][meal] = { on: v, time: meal==='dej'?'11:30':'18:00' };
+          }
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+function deepMerge(target, source) {
+  const out = { ...target };
+  for (const k of Object.keys(source)) {
+    if (source[k] !== null && typeof source[k] === 'object' && !Array.isArray(source[k]) &&
+        target[k] !== null && typeof target[k] === 'object' && !Array.isArray(target[k])) {
+      out[k] = deepMerge(target[k], source[k]);
+    } else {
+      out[k] = source[k];
+    }
+  }
+  return out;
+}
+
+function saveMenu(data) {
+  menuData = data;
+  localStorage.setItem('cantine_menu_v2', JSON.stringify(data));
+}
+
+function saveSettings() {
+  localStorage.setItem('cantine_settings_v3', JSON.stringify(settings));
+}
+
+function saveSetting(path, value) {
+  const parts = path.split('.');
+  let obj = settings;
+  for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
+  obj[parts[parts.length-1]] = value;
+  saveSettings();
+  if (path === 'pdfUrl') document.getElementById('display-url').textContent = shortenUrl(value);
+}
+
+function clearMenu() {
+  if (!confirm('Supprimer le menu chargé ?')) return;
+  menuData = null;
+  localStorage.removeItem('cantine_menu_v2');
+  renderMenu(); updateImportStatus(); updateSettingsStatus();
+}
+
+/* ════════════════════════════════════════
+   ACCENT COLOR
+════════════════════════════════════════ */
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+
+function applyAccent(hex) {
+  const {r,g,b} = hexToRgb(hex);
+  // Determine if accent is light or dark (for text on accent bg)
+  const lum = 0.299*r + 0.587*g + 0.114*b;
+  const txtOnAccent = lum > 160 ? '#1A1212' : '#fff';
+  document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},.10)`);
+  document.documentElement.style.setProperty('--accent-txt', txtOnAccent);
+  document.getElementById('theme-color-meta')?.setAttribute('content', hex);
+  // Update color picker swatch
+  const inp = document.getElementById('accent-color-input');
+  if (inp) inp.value = hex;
+  // Update preset active state
+  document.querySelectorAll('.color-preset').forEach(el => {
+    el.classList.toggle('active', el.dataset.color.toLowerCase() === hex.toLowerCase());
+  });
+}
+
+function saveAccent(hex) {
+  settings.accentColor = hex;
+  saveSettings();
+}
+
+function renderColorPresets() {
+  const el = document.getElementById('color-presets');
+  if (!el) return;
+  el.innerHTML = ACCENT_PRESETS.map(p => `
+    <div class="color-preset${p.color.toLowerCase() === (settings.accentColor||'#C5000B').toLowerCase()?' active':''}"
+      style="background:${p.color}" data-color="${p.color}" title="${p.name}"
+      onclick="applyAccent('${p.color}');saveAccent('${p.color}')"></div>
+  `).join('');
+}
+
+/* ════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════ */
+function openTab(name) {
+  ['menu','import','settings'].forEach(t => {
+    document.getElementById('page-'+t).classList.toggle('active', t===name);
+    document.getElementById('navbtn-'+t).classList.toggle('active', t===name);
+  });
+  document.getElementById('main').scrollTop = 0;
+  if (name === 'settings') renderSettings();
+  if (name === 'menu') renderMenu();
+}
+
+/* ════════════════════════════════════════
+   WEEK LOGIC
+════════════════════════════════════════ */
+function getWeekIdxByLabel(label) {
+  return settings.week1isA ? (label==='A'?0:1) : (label==='A'?1:0);
+}
+function getLabelByIdx(idx) {
+  return settings.week1isA ? (idx===0?'A':'B') : (idx===0?'B':'A');
+}
+
+function getCurrentWeekIdx() {
+  if (!menuData?.weeks?.length) return 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  for (let i = 0; i < menuData.weeks.length; i++) {
+    const ws = new Date(menuData.weeks[i].weekStart);
+    const we = new Date(ws); we.setDate(ws.getDate()+6);
+    if (today >= ws && today <= we) return i;
+  }
+  // Closest week
+  const now = today.getTime();
+  const d0 = Math.abs(now - new Date(menuData.weeks[0].weekStart).getTime());
+  const d1 = menuData.weeks[1] ? Math.abs(now - new Date(menuData.weeks[1].weekStart).getTime()) : Infinity;
+  return d0 <= d1 ? 0 : 1;
+}
+
+// Returns 'dej' or 'din' based on current hour
+function getClosestMeal() {
+  const h = new Date().getHours();
+  // Dîner: 19h00 and beyond
+  return (h >= 19) ? 'din' : 'dej';
+}
+
+/* ════════════════════════════════════════
+   RENDER MENU PAGE
+════════════════════════════════════════ */
+function renderMenu() {
+  const el = document.getElementById('menu-content');
+  if (!menuData?.weeks?.length) {
+    el.innerHTML = `<div class="empty">
+      <div class="empty-icon">🍽️</div>
+      <div class="empty-title">Aucun menu chargé</div>
+      <div class="empty-sub">Récupère le PDF depuis l'onglet Actualiser.</div>
+      <button class="btn btn-primary" onclick="openTab('import')">Charger le menu</button>
+    </div>`;
+    return;
+  }
+
+  const autoIdx = getCurrentWeekIdx();
+  if (currentDisplayWeekIdx > menuData.weeks.length - 1) {
+    currentDisplayWeekIdx = autoIdx;
+  }
+
+  renderWeekContent();
+}
+
+function renderWeekContent() {
+  const el = document.getElementById('menu-content');
+  if (!menuData?.weeks?.length) return;
+
+  const weekIdx  = currentDisplayWeekIdx;
+  const week     = menuData.weeks[weekIdx];
+  const autoIdx  = getCurrentWeekIdx();
+
+  if (!week) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Semaine non disponible</div></div>`;
+    return;
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const ws    = new Date(week.weekStart);
+  const we    = new Date(ws); we.setDate(ws.getDate()+4);
+  const label = getLabelByIdx(weekIdx);
+  const closestMeal = getClosestMeal();
+
+  const daysLeft = week.dejeuner.filter(d => {
+    const dt = new Date(d.date); dt.setHours(0,0,0,0);
+    return dt >= today && !d.ferie;
+  }).length;
+
+  // Back to current week button (only when showing next week)
+  let prevBtn = '';
+  if (weekIdx !== autoIdx) {
+    prevBtn = `<button class="prev-week-btn" onclick="currentDisplayWeekIdx=${autoIdx};renderWeekContent()">← Semaine actuelle</button>`;
+  }
+
+  const badge = `<div class="week-badge">
+    <div class="week-badge-dot"></div>
+    <span class="week-badge-text">Semaine ${label} · ${ws.getDate()} – ${we.getDate()} ${MONTHS_FR[we.getMonth()]}</span>
+    <span class="week-badge-pill">${daysLeft>0?daysLeft+' jour'+(daysLeft>1?'s':''):'Passée'}</span>
+  </div>`;
+
+  const cards = week.dejeuner.map((dejDay, i) => {
+    const dinDay  = week.diner[i];
+    const dt      = new Date(dejDay.date); dt.setHours(0,0,0,0);
+    const isToday = dt.getTime() === today.getTime();
+    const isFerie = dejDay.ferie && (!dinDay || dinDay.ferie);
+
+    const cardClass = `day-card${isToday?' today':''}${isFerie?' ferie':''}`;
+    const hClass    = isToday ? 'today-hd' : '';
+
+    const todayChip = isToday ? `<span class="day-chip today-chip">Aujourd'hui</span>` : '';
+    const ferieChip = isFerie ? `<span class="day-chip ferie-chip">Fermé</span>` : '';
+
+    const header = `<div class="day-header ${hClass}" onclick="openDayModal(${weekIdx},${i})">
+      ${todayChip}
+      <span class="day-name">${DAY_NAMES[i]}</span>
+      <span class="day-date">${dt.getDate()} ${MONTHS_FR[dt.getMonth()]}</span>
+      ${ferieChip}
+      ${!isFerie?'<span class="day-chevron">›</span>':''}
+    </div>`;
+
+    if (isFerie) return `<div class="${cardClass} no-click">${header}</div>`;
+
+    const dejPlat = firstItem(dejDay.plats) || '—';
+    const dinPlat = dinDay ? (firstItem(dinDay.plats) || '—') : '—';
+
+    // Highlight current meal row on today's card
+    const dejHL = isToday && closestMeal === 'dej' ? ' highlight' : '';
+    const dinHL = isToday && closestMeal === 'din' ? ' highlight' : '';
+
+    const preview = `<div class="day-preview">
+      <div class="preview-row${dejHL}">
+        <span class="preview-meal-label dej">Déj</span>
+        <span class="preview-value${dejPlat==='—'?' empty':''}">${dejPlat}</span>
+      </div>
+      <div class="preview-row${dinHL}">
+        <span class="preview-meal-label din">Dîn</span>
+        <span class="preview-value${dinPlat==='—'?' empty':''}">${dinPlat}</span>
+      </div>
+    </div>`;
+
+    return `<div class="${cardClass}" onclick="openDayModal(${weekIdx},${i})">${header}${preview}</div>`;
+  }).join('');
+
+  // Next week button
+  const nextWeekIdx = weekIdx === 0 ? 1 : 0;
+  const hasNextWeek = menuData.weeks[nextWeekIdx] != null;
+  const nextLabel   = getLabelByIdx(nextWeekIdx);
+  const nextBtn = hasNextWeek ? `
+    <button class="next-week-btn" onclick="currentDisplayWeekIdx=${nextWeekIdx};renderWeekContent()">
+      <span>📅</span> Semaine ${nextLabel}
+    </button>` : '';
+
+  el.innerHTML = prevBtn + badge + cards + nextBtn;
+}
+
+function firstItem(arr) { return arr?.length > 0 ? arr[0] : null; }
+
+/* ════════════════════════════════════════
+   MODAL
+════════════════════════════════════════ */
+function openDayModal(weekIdx, dayIdx) {
+  const week   = menuData.weeks[weekIdx];
+  const dejDay = week.dejeuner[dayIdx];
+  const dinDay = week.diner[dayIdx];
+  const dt     = new Date(dejDay.date);
+  dt.setHours(0,0,0,0);
+  const isFerie = dejDay.ferie && (!dinDay || dinDay.ferie);
+
+  const heroClass = isFerie ? 'modal-hero ferie-hero' : 'modal-hero';
+  const header = `<div class="${heroClass}">
+    <div class="modal-day-name">${DAY_NAMES[dayIdx]}</div>
+    <div class="modal-day-date">${DAY_NAMES[dayIdx]} ${dt.getDate()} ${MONTHS_FR[dt.getMonth()]} ${dt.getFullYear()}</div>
+  </div>`;
+
+  let body = '';
+  if (isFerie) {
+    body = `<div style="text-align:center;padding:32px 16px;color:var(--text-2);font-size:15px">Cantine fermée ce jour</div>`;
+  } else {
+    body = `<div class="modal-body">
+      ${renderMealSection(dejDay,'Déjeuner',true)}
+      ${renderMealSection(dinDay,'Dîner',false)}
+    </div>`;
+  }
+
+  document.getElementById('modal-content').innerHTML = header + body;
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function renderMealSection(day, label, isDej) {
+  if (!day) return '';
+  const hasContent = CAT_DEFS.some(c => day[c.key]?.length > 0);
+  if (!hasContent) return `<div class="meal-section">
+    <div class="meal-section-title${isDej?' dej':''}">${isDej?'🍽️':'🌙'} ${label}</div>
+    <div style="color:var(--text-3);font-size:13px;padding:4px 0 8px">Non disponible</div>
+  </div>`;
+
+  const cats = CAT_DEFS.map(cat => {
+    const items = day[cat.key] || [];
+    if (!items.length) return '';
+    const rows = items.map(item => {
+      const isVeg = detectVeg(item);
+      return `<div class="cat-item">
+        <div class="cat-bullet" style="background:${cat.color}"></div>
+        <div class="cat-item-text${isVeg?' veg':''}">${escHtml(item)}${isVeg?' 🌿':''}</div>
+      </div>`;
+    }).join('');
+    return `<div class="cat-card">
+      <div class="cat-header" style="background:${cat.color}16">
+        <span class="cat-emoji">${cat.emoji}</span>
+        <span class="cat-name" style="color:${cat.color}">${cat.label}</span>
+      </div>
+      <div class="cat-body">${rows}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="meal-section">
+    <div class="meal-section-title${isDej?' dej':''}">${isDej?'🍽️':'🌙'} ${label}</div>
+    ${cats}
+  </div>`;
+}
+
+function detectVeg(text) {
+  return /vég[eé]t/i.test(text)||/végé\b/i.test(text)||/\bvegé?\b/i.test(text)||
+         /falafel/i.test(text)||/\blentille\b/i.test(text)||/\bpois chiche\b/i.test(text);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function handleModalOverlayClick(e) {
+  if (e.target === document.getElementById('modal')) closeModal();
+}
+
+/* ════════════════════════════════════════
+   FETCH PDF
+════════════════════════════════════════ */
+async function quickRefresh() {
+  const btn = document.getElementById('btn-refresh');
+  btn.classList.add('spinning');
+  try { await fetchMenuFromUrl(true); }
+  catch(e) { showToast('Actualisation impossible'); }
+  finally { btn.classList.remove('spinning'); }
+}
+
+async function fetchMenuFromUrl(silent=false) {
+  if (!silent) setImportStatus('loading','📡 Connexion au serveur EasILYS…');
+  const url = settings.pdfUrl || DEFAULT_PDF_URL;
+  let blob = null;
+
+  try {
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (resp.ok) blob = await resp.blob();
+  } catch(e) {}
+
+  if (!blob) {
+    for (const proxyFn of CORS_PROXIES) {
+      try {
+        if (!silent) setImportStatus('loading','🔄 Via proxy…');
+        const resp = await fetch(proxyFn(url), { signal: AbortSignal.timeout(12000) });
+        if (resp.ok) { blob = await resp.blob(); break; }
+      } catch(e) {}
+    }
+  }
+
+  if (!blob) {
+    if (!silent) setImportStatus('error','Impossible de télécharger le PDF. Vérifie ta connexion ou importe-le manuellement.');
+    throw new Error('no blob');
+  }
+
+  if (!silent) setImportStatus('loading','📄 Lecture du PDF…');
+  await processPdfBlob(blob, silent);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f?.type === 'application/pdf') processPdfBlob(f);
+  else setImportStatus('error','Ce n\'est pas un fichier PDF.');
+}
+function handlePdfUpload(inp) {
+  const f = inp.files[0]; if (!f) return;
+  processPdfBlob(f); inp.value = '';
+}
+
+async function processPdfBlob(blob, silent=false) {
+  try {
+    if (!silent) setImportStatus('loading','⚙️ Extraction du menu…');
+    const buf = await blob.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const data = await parsePdfDocument(pdf);
+    saveMenu(data);
+    currentDisplayWeekIdx = getCurrentWeekIdx();
+    renderMenu();
+    updateSettingsStatus();
+    updateImportStatus();
+    if (!silent) {
+      setImportStatus('success',`✅ Menu importé ! ${data.weeks.length} semaines.`);
+      setTimeout(() => openTab('menu'), 1600);
+    } else {
+      showToast('Menu mis à jour');
+    }
+  } catch(e) {
+    if (!silent) setImportStatus('error','❌ '+(e.message||'Erreur lors de la lecture du PDF.'));
+    else showToast('Erreur lecture PDF');
+    console.error(e);
+  }
+}
+
+/* ════════════════════════════════════════
+   PDF PARSER
+════════════════════════════════════════ */
+async function parsePdfDocument(pdfDoc) {
+  const pageCount = Math.min(4, pdfDoc.numPages);
+  const pageResults = [];
+  for (let p = 1; p <= pageCount; p++) {
+    pageResults.push(await parseMenuPage(pdfDoc, p));
+  }
+
+  const dateFrom = pageResults[0]?.dateFrom;
+  const dateTo   = pageResults[0]?.dateTo;
+  if (!dateFrom) throw new Error('Date de la semaine non trouvée dans le PDF.');
+
+  const week1Start = parseFrDate(dateFrom);
+  const week2Start = new Date(week1Start.getTime() + 7*24*60*60*1000);
+
+  const weeks = [];
+  for (let w = 0; w < 2; w++) {
+    const wStart  = w===0 ? week1Start : week2Start;
+    const dejPage = pageResults[w*2];
+    const dinPage = pageResults[w*2+1];
+    if (!dejPage) continue;
+
+    const dejDays = dejPage.days.map((d,i) => {
+      const dt = new Date(wStart); dt.setDate(wStart.getDate()+i);
+      return { ...d, date: dt.toISOString() };
+    });
+    const dinDays = (dinPage?.days||[]).map((d,i) => {
+      const dt = new Date(wStart); dt.setDate(wStart.getDate()+i);
+      return { ...d, date: dt.toISOString() };
+    });
+
+    weeks.push({ weekStart: wStart.toISOString(), dejeuner: dejDays, diner: dinDays });
+  }
+
+  if (!weeks.length) throw new Error('Aucune semaine extraite du PDF.');
+  const totalItems = weeks.flatMap(w=>w.dejeuner).flatMap(d=>d.plats).length;
+  if (totalItems === 0) throw new Error('Aucun plat extrait. Vérifiez le format du PDF.');
+
+  return { dateFrom, dateTo, weeks, fetchedAt: new Date().toISOString() };
+}
+
+async function parseMenuPage(pdfDoc, pageNum) {
+  const page = await pdfDoc.getPage(pageNum);
+  const vp   = page.getViewport({ scale: 1 });
+  const tc   = await page.getTextContent();
+
+  const tokens = [];
+  for (const item of tc.items) {
+    const text = (item.str||'').trim();
+    if (!text) continue;
+    tokens.push({ text, x: item.transform[4], y: vp.height - item.transform[5] });
+  }
+
+  const allText = tokens.map(t=>t.text).join(' ');
+  const dm = allText.match(/Du\s+(\d{2}\/\d{2}\/\d{4})\s+Au\s+(\d{2}\/\d{2}\/\d{4})/);
+  const dateFrom = dm?.[1] ?? null;
+  const dateTo   = dm?.[2] ?? null;
+
+  const sectionY = {};
+  for (const tok of tokens) {
+    const tu = tok.text.toUpperCase();
+    if (tu==='ENTREES'  && sectionY.entrees     ===undefined) sectionY.entrees     = tok.y;
+    if (tu==='PLATS'    && sectionY.plats        ===undefined) sectionY.plats       = tok.y;
+    if (tu==='LAITIERS' && sectionY.prodLaitiers ===undefined) sectionY.prodLaitiers= tok.y;
+    if (tu==='DESSERTS' && sectionY.desserts     ===undefined) sectionY.desserts   = tok.y;
+  }
+
+  const sections = [
+    { key:'entrees',     y: sectionY.entrees      ?? 100 },
+    { key:'plats',       y: sectionY.plats         ?? 200 },
+    { key:'prodLaitiers',y: sectionY.prodLaitiers  ?? 320 },
+    { key:'desserts',    y: sectionY.desserts      ?? 370 },
+  ].sort((a,b) => a.y-b.y);
+
+  const lastSectionY = Math.max(...sections.map(s=>s.y));
+  const contentEnd   = lastSectionY + 38;
+
+  function getSection(y) {
+    if (y < sections[0].y+3) return null;
+    if (y > contentEnd)      return null;
+    let result = null;
+    for (const s of sections) { if (y >= s.y) result = s.key; }
+    return result;
+  }
+
+  function getColumn(x) {
+    if (x < 164) return 'LUNDI';
+    if (x < 318) return 'MARDI';
+    if (x < 479) return 'MERCREDI';
+    if (x < 638) return 'JEUDI';
+    return 'VENDREDI';
+  }
+
+  const SKIP_EXACT = new Set([
+    'ENTREES','PLATS','PRODUITS','LAITIERS','DESSERTS',
+    'LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI',
+    'DÉJEUNER','DÎNER','DEJEUNER','DINER','Déjeuner','Dîner',
+  ]);
+  const SKIP_RE = /^(Lycée|JULES|FERRY|VERSAILLES|LE\s*\/\s*LA|Sous\s+rés|PROVISEUR|SECRÉTAIRE|SECRETAIRE|Agriculture|Appellation|Label\s+Rouge|Ecolabel|Commerce\s+éq|Fait\s+maison|Haute\s+Valeur|Indication\s+géo|Région\s+ultra|Spécialité\s+trad|Produit\s+(en\s+Île|Fermier)|Plat\s+Végét|contrôlée|protégée|durable|équitable|garantie|ultrapéri|Biologique|d'origine|pêche\s+dur|Du\s+\d|Au\s+\d)/i;
+
+  const raw = {};
+  for (const dk of DAY_KEYS) {
+    raw[dk] = { entrees:{}, plats:{}, prodLaitiers:{}, desserts:{} };
+  }
+
+  for (const tok of tokens) {
+    if (SKIP_EXACT.has(tok.text)||SKIP_EXACT.has(tok.text.toUpperCase())) continue;
+    if (SKIP_RE.test(tok.text)) continue;
+    const section = getSection(tok.y);
+    if (!section) continue;
+    const col  = getColumn(tok.x);
+    const yKey = Math.round(tok.y/5)*5;
+    if (!raw[col][section][yKey]) raw[col][section][yKey] = [];
+    raw[col][section][yKey].push(tok.text);
+  }
+
+  const days = DAY_KEYS.map((dk,i) => {
+    function buildLines(section) {
+      return Object.keys(raw[dk][section])
+        .map(Number).sort((a,b)=>a-b)
+        .map(y=>raw[dk][section][y].join(' '))
+        .filter(Boolean);
+    }
+    const entrees     = buildLines('entrees');
+    const plats       = buildLines('plats');
+    const prodLaitiers= buildLines('prodLaitiers');
+    const desserts    = buildLines('desserts');
+    const isEmpty     = ![...entrees,...plats,...prodLaitiers,...desserts].some(Boolean);
+
+    return { dayKey:dk.toLowerCase(), dayName:DAY_NAMES[i], entrees, plats, prodLaitiers, desserts, ferie:isEmpty };
+  });
+
+  return { dateFrom, dateTo, days };
+}
+
+function parseFrDate(str) {
+  const [d,m,y] = str.split('/').map(Number);
+  return new Date(y, m-1, d);
+}
+
+/* ════════════════════════════════════════
+   NOTIFICATIONS
+════════════════════════════════════════ */
+function requestNotifPermission() {
+  if (!('Notification' in window)) { showToast('Notifications non supportées'); return; }
+  Notification.requestPermission().then(p => {
+    updateNotifStatus();
+    showToast(p==='granted'?'Notifications activées ✓':'Permission refusée');
+  });
+}
+
+function updateNotifStatus() {
+  const el  = document.getElementById('notif-status-text');
+  const btn = document.getElementById('notif-perm-btn');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.textContent = 'Non supporté par ce navigateur';
+    if (btn) btn.style.display='none';
+    return;
+  }
+  const p = Notification.permission;
+  el.textContent = p==='granted'?'Activées':p==='denied'?'Bloquées (modifier dans le navigateur)':'Non activées';
+  if (btn) btn.style.display = p==='default' ? '' : 'none';
+}
+
+function checkNotifications() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!menuData?.weeks?.length) return;
+
+  const now  = new Date();
+  const dotw = now.getDay();
+  if (dotw===0||dotw===6) return;
+
+  const weekIdx  = getCurrentWeekIdx();
+  const weekLabel= getLabelByIdx(weekIdx);
+  const dayIdx   = dotw - 1;
+  const dayKey   = DAY_KEY_LOWER[dayIdx];
+  const week     = menuData.weeks[weekIdx];
+  if (!week) return;
+
+  for (const meal of ['dej','din']) {
+    const masterEnabled = meal==='dej' ? settings.notifDejEnabled : settings.notifDinEnabled;
+    if (!masterEnabled) continue;
+
+    const mealSched = settings.schedule?.[weekLabel]?.[dayKey]?.[meal];
+    if (!mealSched?.on) continue;
+
+    const time = mealSched.time || (meal==='dej'?'11:30':'18:00');
+    const [h,m] = time.split(':').map(Number);
+    const target = new Date(now); target.setHours(h,m,0,0);
+
+    if (Math.abs(now-target) > 30*60*1000) continue;
+
+    const key = `notif_${now.toDateString()}_${meal}`;
+    try { if (localStorage.getItem(key)) continue; } catch(e) {}
+
+    const mealData  = meal==='dej' ? week.dejeuner : week.diner;
+    const dayMenu   = mealData?.[dayIdx];
+    const mainPlat  = dayMenu?.plats?.[0] ?? 'Menu disponible';
+    const mealLabel = meal==='dej' ? 'Déjeuner' : 'Dîner';
+
+    new Notification(`🍽️ ${mealLabel} — Semaine ${weekLabel}`, {
+      body: mainPlat, icon: 'icons/icon-192.png',
+    });
+
+    try { localStorage.setItem(key,'1'); } catch(e) {}
+  }
+}
+
+/* ════════════════════════════════════════
+   SETTINGS RENDER
+════════════════════════════════════════ */
+function renderSettings() {
+  renderColorPresets();
+  renderScheduleGrid('A');
+  renderScheduleGrid('B');
+  updateNotifStatus();
+  updateSettingsStatus();
+
+  // Master notif toggles
+  const dejM = document.getElementById('notif-dej-master');
+  const dinM = document.getElementById('notif-din-master');
+  if (dejM) dejM.checked = settings.notifDejEnabled !== false;
+  if (dinM) dinM.checked = settings.notifDinEnabled !== false;
+
+  document.getElementById('pdf-url-input').value = settings.pdfUrl || DEFAULT_PDF_URL;
+  document.getElementById('week1-label').value   = settings.week1isA ? 'A' : 'B';
+  document.getElementById('display-url').textContent = shortenUrl(settings.pdfUrl||DEFAULT_PDF_URL);
+}
+
+function renderScheduleGrid(week) {
+  const el = document.getElementById(`schedule-${week}`);
+  const dayFr = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi'];
+
+  el.innerHTML = DAY_KEY_LOWER.map((dk,i) => {
+    const dej = settings.schedule?.[week]?.[dk]?.dej || { on:false, time:'11:30' };
+    const din = settings.schedule?.[week]?.[dk]?.din || { on:false, time:'18:00' };
+
+    return `<div class="sg-day-block">
+      <div class="sg-day-name">${dayFr[i]}</div>
+      <div class="sg-meal-row">
+        <label class="toggle" style="flex-shrink:0">
+          <input type="checkbox" ${dej.on?'checked':''}
+            onchange="setScheduleMeal('${week}','${dk}','dej','on',this.checked);syncTimeInput(this,'time-${week}-${dk}-dej')">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="sg-meal-label${dej.on?' active':''}">Déjeuner</span>
+        <input type="time" id="time-${week}-${dk}-dej" class="time-input"
+          value="${dej.time||'11:30'}" ${dej.on?'':'disabled'}
+          onchange="setScheduleMeal('${week}','${dk}','dej','time',this.value)">
+      </div>
+      <div class="sg-meal-row">
+        <label class="toggle" style="flex-shrink:0">
+          <input type="checkbox" ${din.on?'checked':''}
+            onchange="setScheduleMeal('${week}','${dk}','din','on',this.checked);syncTimeInput(this,'time-${week}-${dk}-din')">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="sg-meal-label${din.on?' active':''}">Dîner</span>
+        <input type="time" id="time-${week}-${dk}-din" class="time-input"
+          value="${din.time||'18:00'}" ${din.on?'':'disabled'}
+          onchange="setScheduleMeal('${week}','${dk}','din','time',this.value)">
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function syncTimeInput(checkbox, inputId) {
+  const inp = document.getElementById(inputId);
+  if (inp) {
+    inp.disabled = !checkbox.checked;
+    // Update label active state
+    const label = inp.previousElementSibling;
+    if (label?.classList.contains('sg-meal-label')) {
+      label.classList.toggle('active', checkbox.checked);
+    }
+  }
+}
+
+function setScheduleMeal(week, day, meal, prop, val) {
+  if (!settings.schedule[week]) settings.schedule[week] = {};
+  if (!settings.schedule[week][day]) settings.schedule[week][day] = {};
+  if (!settings.schedule[week][day][meal]) settings.schedule[week][day][meal] = { on:false, time:'11:30' };
+  settings.schedule[week][day][meal][prop] = val;
+  saveSettings();
+}
+
+function updateSettingsStatus() {
+  const titleEl = document.getElementById('menu-status-text');
+  const subEl   = document.getElementById('menu-status-sub');
+  if (!titleEl) return;
+  if (menuData?.weeks?.length) {
+    titleEl.textContent = `Menu chargé — ${menuData.weeks.length} semaine(s)`;
+    subEl.textContent   = `Mis à jour le ${formatDateTime(menuData.fetchedAt)}`;
+  } else {
+    titleEl.textContent = 'Aucun menu chargé';
+    subEl.textContent   = '—';
+  }
+}
+
+function updateImportStatus() {
+  const el = document.getElementById('last-updated');
+  if (!el) return;
+  el.textContent = menuData?.fetchedAt ? 'Mis à jour le '+formatDateTime(menuData.fetchedAt) : '';
+}
+
+/* ════════════════════════════════════════
+   IMPORT STATUS
+════════════════════════════════════════ */
+function setImportStatus(type, msg) {
+  const el = document.getElementById('import-status');
+  if (!el) return;
+  if (type==='loading') {
+    el.innerHTML = `<div class="loader"><div class="spinner"></div><p style="font-size:13px;color:var(--text-2)">${msg}</p></div>`;
+  } else {
+    const icons = { success:'✅', error:'❌', info:'ℹ️' };
+    el.innerHTML = `<div class="status-banner ${type}">
+      <span class="s-icon">${icons[type]||'ℹ️'}</span><span>${msg}</span>
+    </div>`;
+  }
+}
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function shortenUrl(url) {
+  try { const u=new URL(url); return u.host+u.pathname.slice(0,28)+(u.pathname.length>28?'…':''); }
+  catch(e) { return url; }
+}
+function formatDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR',{day:'numeric',month:'long'}) +
+    ' à ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+}
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+window.addEventListener('load', () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
+
+  loadState();
+
+  // Apply saved accent color
+  applyAccent(settings.accentColor || '#C5000B');
+
+  document.getElementById('main').addEventListener('scroll', () => {
+    document.getElementById('appbar').classList.toggle('raised',
+      document.getElementById('main').scrollTop > 2);
+  });
+
+  currentDisplayWeekIdx = getCurrentWeekIdx();
+  renderMenu();
+  updateImportStatus();
+
+  checkNotifications();
+  setInterval(checkNotifications, 5*60*1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkNotifications();
+  });
+
+  if (!menuData) {
+    setTimeout(() => openTab('import'), 300);
+  }
+});
+</script>
+</body>
+</html>
