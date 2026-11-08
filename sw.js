@@ -1,4 +1,4 @@
-const CACHE = 'cantine-v2';
+const CACHE = 'cantine-v3';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
