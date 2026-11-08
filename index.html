@@ -315,12 +315,11 @@ button{cursor:pointer;border:none;background:none}
       <div class="settings-group-label">🔔 Notifications</div>
       <div class="settings-card">
         <div class="settings-row">
-          <span class="settings-row-icon">🔐</span>
+          <span class="settings-row-icon">📲</span>
           <div class="settings-row-info">
-            <div class="settings-row-title">Autorisation</div>
-            <div class="settings-row-sub" id="notif-status-text">—</div>
+            <div class="settings-row-title">Topic ntfy</div>
+            <div class="settings-row-sub">Installe l'app <strong>ntfy</strong> et abonne-toi au topic <code>menu-cantine-jf</code> sur ntfy.sh</div>
           </div>
-          <button class="btn btn-secondary" style="width:auto;height:34px;font-size:13px;padding:0 14px" id="notif-perm-btn" onclick="requestNotifPermission()">Activer</button>
         </div>
         <div class="settings-row">
           <span class="settings-row-icon">🍽️</span>
@@ -1069,30 +1068,16 @@ function parseFrDate(str) {
 /* ════════════════════════════════════════
    NOTIFICATIONS
 ════════════════════════════════════════ */
-function requestNotifPermission() {
-  if (!('Notification' in window)) { showToast('Notifications non supportées'); return; }
-  Notification.requestPermission().then(p => {
-    updateNotifStatus();
-    showToast(p==='granted'?'Notifications activées ✓':'Permission refusée');
-  });
-}
+const NTFY_TOPIC = 'menu-cantine-jf';
+const NTFY_URL   = `https://ntfy.sh/${NTFY_TOPIC}`;
 
 function updateNotifStatus() {
   const el  = document.getElementById('notif-status-text');
-  const btn = document.getElementById('notif-perm-btn');
   if (!el) return;
-  if (!('Notification' in window)) {
-    el.textContent = 'Non supporté par ce navigateur';
-    if (btn) btn.style.display='none';
-    return;
-  }
-  const p = Notification.permission;
-  el.textContent = p==='granted'?'Activées':p==='denied'?'Bloquées (modifier dans le navigateur)':'Non activées';
-  if (btn) btn.style.display = p==='default' ? '' : 'none';
+  el.textContent = `Abonne-toi au topic ntfy : ${NTFY_TOPIC}`;
 }
 
-function checkNotifications() {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+async function checkNotifications() {
   if (!menuData?.weeks?.length) return;
 
   const now  = new Date();
@@ -1127,11 +1112,20 @@ function checkNotifications() {
     const mainPlat  = dayMenu?.plats?.[0] ?? 'Menu disponible';
     const mealLabel = meal==='dej' ? 'Déjeuner' : 'Dîner';
 
-    new Notification(`🍽️ ${mealLabel} — Semaine ${weekLabel}`, {
-      body: mainPlat, icon: 'icons/icon-192.png',
-    });
-
-    try { localStorage.setItem(key,'1'); } catch(e) {}
+    try {
+      await fetch(NTFY_URL, {
+        method: 'POST',
+        headers: {
+          'Title': `🍽️ ${mealLabel} — Semaine ${weekLabel}`,
+          'Priority': 'default',
+          'Tags': 'fork_and_knife',
+        },
+        body: mainPlat,
+      });
+      try { localStorage.setItem(key,'1'); } catch(e) {}
+    } catch(e) {
+      console.warn('ntfy:', e);
+    }
   }
 }
 
