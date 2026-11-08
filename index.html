@@ -363,17 +363,6 @@ button{cursor:pointer;border:none;background:none}
       <div class="settings-group-label">⚙️ Menu</div>
       <div class="settings-card">
         <div class="settings-row">
-          <span class="settings-row-icon">📌</span>
-          <div class="settings-row-info">
-            <div class="settings-row-title">Semaine 1 du PDF = Semaine…</div>
-            <div class="settings-row-sub">Quelle semaine scolaire correspond à la 1ère semaine du PDF</div>
-          </div>
-          <select class="styled-select" id="week1-label" onchange="saveSetting('week1isA',this.value==='A')">
-            <option value="A">A</option>
-            <option value="B">B</option>
-          </select>
-        </div>
-        <div class="settings-row">
           <span class="settings-row-icon">🔗</span>
           <div class="settings-row-info"><div class="settings-row-title">URL du PDF</div></div>
         </div>
@@ -477,7 +466,6 @@ const defaultMealEntry = (time) => ({ on: false, time });
 
 let settings = {
   pdfUrl: DEFAULT_PDF_URL,
-  week1isA: true,
   accentColor: '#C5000B',
   notifDejEnabled: true,
   notifDinEnabled: true,
@@ -624,26 +612,35 @@ function openTab(name) {
 /* ════════════════════════════════════════
    WEEK LOGIC
 ════════════════════════════════════════ */
+// Référence fixe : semaine du 09/11/2026 (lundi) = semaine A
+const WEEK_A_REF = new Date(2026, 10, 9); // mois 0-indexé → novembre
+
+function getMondayOf(date) {
+  const d = new Date(date); d.setHours(0,0,0,0);
+  const day = d.getDay(); // 0=dim
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function getWeekLabel(date) {
+  const monday = getMondayOf(date);
+  const refMonday = getMondayOf(WEEK_A_REF);
+  const diffWeeks = Math.round((monday - refMonday) / (7 * 24 * 60 * 60 * 1000));
+  return diffWeeks % 2 === 0 ? 'A' : 'B';
+}
+
 function getWeekIdxByLabel(label) {
-  return settings.week1isA ? (label==='A'?0:1) : (label==='A'?1:0);
+  // Avec 1 seule semaine dans menuData, idx est toujours 0
+  return 0;
 }
 function getLabelByIdx(idx) {
-  return settings.week1isA ? (idx===0?'A':'B') : (idx===0?'B':'A');
+  if (!menuData?.weeks?.[idx]) return getWeekLabel(new Date());
+  return getWeekLabel(new Date(menuData.weeks[idx].weekStart));
 }
 
 function getCurrentWeekIdx() {
-  if (!menuData?.weeks?.length) return 0;
-  const today = new Date(); today.setHours(0,0,0,0);
-  for (let i = 0; i < menuData.weeks.length; i++) {
-    const ws = new Date(menuData.weeks[i].weekStart);
-    const we = new Date(ws); we.setDate(ws.getDate()+6);
-    if (today >= ws && today <= we) return i;
-  }
-  // Closest week
-  const now = today.getTime();
-  const d0 = Math.abs(now - new Date(menuData.weeks[0].weekStart).getTime());
-  const d1 = menuData.weeks[1] ? Math.abs(now - new Date(menuData.weeks[1].weekStart).getTime()) : Infinity;
-  return d0 <= d1 ? 0 : 1;
+  return 0;
 }
 
 // Returns 'dej' or 'din' based on current hour
@@ -926,41 +923,44 @@ async function processPdfBlob(blob, silent=false) {
 /* ════════════════════════════════════════
    PDF PARSER
 ════════════════════════════════════════ */
-async function parsePdfDocument(pdfDoc) {
-  const pageCount = Math.min(4, pdfDoc.numPages);
-  const pageResults = [];
-  for (let p = 1; p <= pageCount; p++) {
-    pageResults.push(await parseMenuPage(pdfDoc, p));
-  }
+async function isMenuPage(pdfDoc, pageNum) {
+  const page = await pdfDoc.getPage(pageNum);
+  const tc   = await page.getTextContent();
+  const text = tc.items.map(i => i.str).join(' ');
+  // Pages allergènes contiennent "Bar à crudités" ou "Gluten" en colonne
+  return !(/Bar\s+à\s+crudités|Crustacés|Mollusques/i.test(text));
+}
 
-  const dateFrom = pageResults[0]?.dateFrom;
-  const dateTo   = pageResults[0]?.dateTo;
+async function parsePdfDocument(pdfDoc) {
+  // Cherche les pages menu (ignore allergènes)
+  const menuPages = [];
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    if (await isMenuPage(pdfDoc, p)) menuPages.push(p);
+    if (menuPages.length >= 2) break; // 1 semaine = déj + dîner
+  }
+  if (menuPages.length < 1) throw new Error('Aucune page menu trouvée dans le PDF.');
+
+  const dejResult = await parseMenuPage(pdfDoc, menuPages[0]);
+  const dinResult = menuPages[1] ? await parseMenuPage(pdfDoc, menuPages[1]) : null;
+
+  const dateFrom = dejResult?.dateFrom;
+  const dateTo   = dejResult?.dateTo;
   if (!dateFrom) throw new Error('Date de la semaine non trouvée dans le PDF.');
 
-  const week1Start = parseFrDate(dateFrom);
-  const week2Start = new Date(week1Start.getTime() + 7*24*60*60*1000);
+  const weekStart = parseFrDate(dateFrom);
 
-  const weeks = [];
-  for (let w = 0; w < 2; w++) {
-    const wStart  = w===0 ? week1Start : week2Start;
-    const dejPage = pageResults[w*2];
-    const dinPage = pageResults[w*2+1];
-    if (!dejPage) continue;
+  const dejDays = dejResult.days.map((d,i) => {
+    const dt = new Date(weekStart); dt.setDate(weekStart.getDate()+i);
+    return { ...d, date: dt.toISOString() };
+  });
+  const dinDays = (dinResult?.days||[]).map((d,i) => {
+    const dt = new Date(weekStart); dt.setDate(weekStart.getDate()+i);
+    return { ...d, date: dt.toISOString() };
+  });
 
-    const dejDays = dejPage.days.map((d,i) => {
-      const dt = new Date(wStart); dt.setDate(wStart.getDate()+i);
-      return { ...d, date: dt.toISOString() };
-    });
-    const dinDays = (dinPage?.days||[]).map((d,i) => {
-      const dt = new Date(wStart); dt.setDate(wStart.getDate()+i);
-      return { ...d, date: dt.toISOString() };
-    });
+  const weeks = [{ weekStart: weekStart.toISOString(), dejeuner: dejDays, diner: dinDays }];
 
-    weeks.push({ weekStart: wStart.toISOString(), dejeuner: dejDays, diner: dinDays });
-  }
-
-  if (!weeks.length) throw new Error('Aucune semaine extraite du PDF.');
-  const totalItems = weeks.flatMap(w=>w.dejeuner).flatMap(d=>d.plats).length;
+  const totalItems = dejDays.flatMap(d=>d.plats).length;
   if (totalItems === 0) throw new Error('Aucun plat extrait. Vérifiez le format du PDF.');
 
   return { dateFrom, dateTo, weeks, fetchedAt: new Date().toISOString() };
@@ -1146,7 +1146,6 @@ function renderSettings() {
   if (dinM) dinM.checked = settings.notifDinEnabled !== false;
 
   document.getElementById('pdf-url-input').value = settings.pdfUrl || DEFAULT_PDF_URL;
-  document.getElementById('week1-label').value   = settings.week1isA ? 'A' : 'B';
   document.getElementById('display-url').textContent = shortenUrl(settings.pdfUrl||DEFAULT_PDF_URL);
 }
 
