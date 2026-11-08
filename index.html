@@ -1109,8 +1109,14 @@ async function checkNotifications() {
 
     const mealData  = meal==='dej' ? week.dejeuner : week.diner;
     const dayMenu   = mealData?.[dayIdx];
-    const mainPlat  = dayMenu?.plats?.[0] ?? 'Menu disponible';
     const mealLabel = meal==='dej' ? 'Déjeuner' : 'Dîner';
+
+    const lines = [];
+    if (dayMenu?.entrees?.length)      lines.push('🥗 Entrées\n'           + dayMenu.entrees.join('\n'));
+    if (dayMenu?.plats?.length)        lines.push('🍽️ Plats\n'             + dayMenu.plats.join('\n'));
+    if (dayMenu?.prodLaitiers?.length) lines.push('🧀 Produits laitiers\n' + dayMenu.prodLaitiers.join('\n'));
+    if (dayMenu?.desserts?.length)     lines.push('🍮 Desserts\n'           + dayMenu.desserts.join('\n'));
+    const body = lines.length ? lines.join('\n\n') : 'Menu disponible';
 
     try {
       await fetch(NTFY_URL, {
@@ -1120,7 +1126,7 @@ async function checkNotifications() {
           'Priority': 'default',
           'Tags': 'fork_and_knife',
         },
-        body: mainPlat,
+        body,
       });
       try { localStorage.setItem(key,'1'); } catch(e) {}
     } catch(e) {
